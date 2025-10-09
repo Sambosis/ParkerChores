@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Chore Manager</title>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #0b1220;
+      --muted: #9ca3af;
+      --text: #e5e7eb;
+      --accent: #60a5fa;
+      --accent-2: #a78bfa;
+      --danger: #ef4444;
+      --border: #1f2937;
+      --drop: #1d4ed8;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      color: var(--text);
+      background: radial-gradient(1200px 600px at 20% -20%, rgba(96,165,250,0.12), transparent 60%),
+                  radial-gradient(900px 900px at 120% 20%, rgba(167,139,250,0.12), transparent 50%),
+                  var(--bg);
+      min-height: 100vh;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      backdrop-filter: blur(8px);
+      background: linear-gradient(180deg, rgba(15,23,42,0.8), rgba(15,23,42,0.5));
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+    }
+    header .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+    .brand-badge {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      display: grid;
+      place-items: center;
+      color: #0b1020;
+      font-weight: 900;
+    }
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    main {
+      max-width: 1200px;
+      margin: 24px auto;
+      padding: 0 16px 40px;
+    }
+
+    /* Controls */
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 800px) {
+      .controls { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    }
+    .card h3 {
+      margin: 0 0 10px;
+      font-size: 16px;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .row-3 {
+      display: grid;
+      grid-template-columns: 1fr 200px auto;
+      gap: 10px;
+    }
+    @media (max-width: 700px) {
+      .row-3 {
+        grid-template-columns: 1fr;
+      }
+    }
+    input, select, button {
+      font: inherit;
+    }
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #0b1220;
+      color: var(--text);
+      outline: none;
+    }
+    input::placeholder { color: #64748b; }
+    button {
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #0b1020;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.05s ease;
+    }
+    button:hover { transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+
+    /* Board */
+    .board {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+    .column {
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      min-height: 280px;
+      overflow: hidden;
+    }
+    .column-header {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .column-header h4 {
+      margin: 0;
+      font-size: 14px;
+      letter-spacing: 0.3px;
+    }
+    .count {
+      color: var(--muted);
+      font-size: 12px;
+      padding: 2px 8px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: #0b1220;
+    }
+    .dropzone {
+      list-style: none;
+      margin: 0;
+      padding: 12px;
+      flex: 1;
+      overflow: auto;
+      min-height: 200px;
+    }
+    .dropzone.over {
+      outline: 2px dashed var(--drop);
+      outline-offset: -6px;
+      background: linear-gradient(180deg, rgba(29,78,216,0.15), rgba(0,0,0,0));
+    }
+
+    /* Chores */
+    .chore {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 10px;
+      margin-bottom: 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background:
+        linear-gradient(120deg, rgba(96,165,250,0.10), rgba(167,139,250,0.10)) border-box,
+        linear-gradient(#0b1220, #0b1220) padding-box;
+      cursor: grab;
+      user-select: none;
+    }
+    .chore .title {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .chore.dragging { opacity: 0.55; }
+    .delete-btn {
+      background: transparent;
+      color: #fca5a5;
+      border: 1px solid var(--border);
+      padding: 6px 9px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .delete-btn:hover { background: rgba(239,68,68,0.12); color: #fecaca; }
+    .footer-note {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: right;
+    }
+    .tiny {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 6px;
+    }
+  </style>
+<script>
+                window.load_data_from_csv = (filename) => {
+                    // Implementation needed when code is downloaded
+                };
+
+                window.save_data_to_csv = (filename, data) => {
+                    // Implementation needed when code is downloaded
+                };
+
+                window.call_llm = (system_prompt, user_messages, json_fields) => {
+                    // Implementation needed when code is downloaded
+                };
+            </script></head>
+<body>
+<header>
+<div class="wrap">
+<div class="brand">
+<div class="brand-badge">C</div>
+<div>
+<div>Chore Manager</div>
+<div class="hint">Add members, add chores, drag and drop, delete</div>
+</div>
+</div>
+<div class="hint">Data auto-saves in your browser</div>
+</div>
+</header>
+<main>
+<section class="controls">
+<div class="card">
+<h3>Add member</h3>
+<form autocomplete="off" id="member-form">
+<div class="row">
+<input id="member-name" placeholder="e.g., Alex" required="" type="text"/>
+<button type="submit">Add Member</button>
+</div>
+</form>
+<div class="tiny">Tip: Avoid duplicates; “Unassigned” is reserved.</div>
+</div>
+<div class="card">
+<h3>Add chore</h3>
+<form autocomplete="off" id="chore-form">
+<div class="row-3">
+<input id="chore-title" placeholder="e.g., Clean the fridge" required="" type="text"/>
+<select aria-label="Assign to" id="chore-assignee"></select>
+<button type="submit">Add Chore</button>
+</div>
+</form>
+<div class="tiny">Drag chores between members anytime. Click × to delete.</div>
+</div>
+</section>
+<section aria-live="polite" class="board" id="board"></section>
+<div class="footer-note">Made with vanilla HTML, CSS, and JS.</div>
+</main>
+<template id="column-template">
+<div class="column" data-member-id="">
+<div class="column-header">
+<h4></h4>
+<span class="count">0</span>
+</div>
+<ul aria-label="Drop chores here" class="dropzone" role="list"></ul>
+</div>
+</template>
+<template id="chore-template">
+<li class="chore" data-id="" draggable="true" role="listitem" title="Drag to reassign">
+<span class="title"></span>
+<button aria-label="Delete chore" class="delete-btn">×</button>
+</li>
+</template>
+<script>
+    (function () {
+      const STORAGE_KEY = "choreManager_v1";
+
+      const defaultState = {
+        members: [
+          { id: "unassigned", name: "Unassigned" },
+          { id: "mom", name: "Mom" },
+          { id: "dad", name: "Dad" },
+        ],
+        chores: [
+          { id: uid(), title: "Wash dishes", memberId: "unassigned" },
+          { id: uid(), title: "Vacuum living room", memberId: "unassigned" },
+          { id: uid(), title: "Laundry", memberId: "unassigned" },
+          { id: uid(), title: "Take out trash", memberId: "unassigned" },
+          { id: uid(), title: "Cook dinner", memberId: "unassigned" },
+          { id: uid(), title: "Clean bathroom", memberId: "unassigned" },
+          { id: uid(), title: "Mow lawn", memberId: "unassigned" },
+          { id: uid(), title: "Grocery shopping", memberId: "unassigned" }
+        ],
+      };
+
+      let state = loadState() || defaultState;
+
+      // Elements
+      const boardEl = document.getElementById("board");
+      const memberForm = document.getElementById("member-form");
+      const memberNameInput = document.getElementById("member-name");
+      const choreForm = document.getElementById("chore-form");
+      const choreTitleInput = document.getElementById("chore-title");
+      const choreAssigneeSelect = document.getElementById("chore-assignee");
+      const colTpl = document.getElementById("column-template");
+      const choreTpl = document.getElementById("chore-template");
+
+      // Init
+      render();
+      memberForm.addEventListener("submit", onAddMember);
+      choreForm.addEventListener("submit", onAddChore);
+
+      /* --- Actions --- */
+
+      function onAddMember(e) {
+        e.preventDefault();
+        let name = (memberNameInput.value || "").trim();
+        if (!name) return;
+
+        if (name.toLowerCase() === "unassigned") {
+          alert('"Unassigned" is reserved. Pick a different name.');
+          return;
+        }
+        if (state.members.some(m => m.name.toLowerCase() === name.toLowerCase())) {
+          alert("That member already exists.");
+          return;
+        }
+
+        const idBase = slugify(name) || "member";
+        let id = idBase;
+        let i = 2;
+        while (state.members.some(m => m.id === id)) {
+          id = `${idBase}-${i++}`;
+        }
+
+        state.members.push({ id, name });
+        saveState();
+        memberNameInput.value = "";
+        render();
+      }
+
+      function onAddChore(e) {
+        e.preventDefault();
+        const title = (choreTitleInput.value || "").trim();
+        if (!title) return;
+
+        const memberId = choreAssigneeSelect.value || "unassigned";
+        state.chores.push({ id: uid(), title, memberId });
+        saveState();
+
+        choreTitleInput.value = "";
+        choreAssigneeSelect.value = "unassigned";
+        render();
+      }
+
+      function deleteChore(id) {
+        state.chores = state.chores.filter(c => c.id !== id);
+        saveState();
+        render();
+      }
+
+      function moveChore(choreId, memberId) {
+        const c = state.chores.find(x => x.id === choreId);
+        if (!c) return;
+        c.memberId = memberId;
+        saveState();
+        render();
+      }
+
+      /* --- Render --- */
+
+      function render() {
+        // Board
+        boardEl.innerHTML = "";
+        state.members.forEach(member => {
+          const node = colTpl.content.firstElementChild.cloneNode(true);
+          node.dataset.memberId = member.id;
+          node.querySelector("h4").textContent = member.name;
+
+          const dropzone = node.querySelector(".dropzone");
+          dropzone.dataset.memberId = member.id;
+
+          // Chores for this member
+          const chores = state.chores.filter(c => c.memberId === member.id);
+          node.querySelector(".count").textContent = chores.length;
+
+          chores.forEach(c => {
+            const li = choreTpl.content.firstElementChild.cloneNode(true);
+            li.dataset.id = c.id;
+            li.querySelector(".title").textContent = c.title;
+
+            // Drag events
+            li.addEventListener("dragstart", onDragStart);
+            li.addEventListener("dragend", onDragEnd);
+
+            // Delete
+            li.querySelector(".delete-btn").addEventListener("click", () => deleteChore(c.id));
+
+            dropzone.appendChild(li);
+          });
+
+          // Dropzone events
+          dropzone.addEventListener("dragover", onDragOver);
+          dropzone.addEventListener("dragleave", onDragLeave);
+          dropzone.addEventListener("drop", onDrop);
+
+          boardEl.appendChild(node);
+        });
+
+        // Assignee select
+        renderAssigneeSelect();
+      }
+
+      function renderAssigneeSelect() {
+        // Keep Unassigned at top, rest by creation order
+        choreAssigneeSelect.innerHTML = "";
+        state.members.forEach(m => {
+          const opt = document.createElement("option");
+          opt.value = m.id;
+          opt.textContent = m.name;
+          choreAssigneeSelect.appendChild(opt);
+        });
+        if (!choreAssigneeSelect.value) {
+          choreAssigneeSelect.value = "unassigned";
+        }
+      }
+
+      /* --- DnD --- */
+
+      function onDragStart(e) {
+        const id = e.currentTarget.dataset.id;
+        e.dataTransfer.setData("text/plain", id);
+        e.dataTransfer.effectAllowed = "move";
+        e.currentTarget.classList.add("dragging");
+      }
+      function onDragEnd(e) {
+        e.currentTarget.classList.remove("dragging");
+      }
+      function onDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        e.currentTarget.classList.add("over");
+      }
+      function onDragLeave(e) {
+        e.currentTarget.classList.remove("over");
+      }
+      function onDrop(e) {
+        e.preventDefault();
+        e.currentTarget.classList.remove("over");
+
+        const choreId = e.dataTransfer.getData("text/plain");
+        const memberId = e.currentTarget.dataset.memberId;
+        if (!choreId || !memberId) return;
+
+        moveChore(choreId, memberId);
+      }
+
+      /* --- Storage & Utils --- */
+
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return null;
+          const parsed = JSON.parse(raw);
+          // basic shape check
+          if (!parsed.members || !parsed.chores) return null;
+          return parsed;
+        } catch {
+          return null;
+        }
+      }
+      function saveState() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      }
+      function uid() {
+        return "c_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      }
+      function slugify(s) {
+        return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      }
+    })();
+  </script>
+</body>
+</html>
