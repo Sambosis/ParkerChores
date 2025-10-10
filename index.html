@@ -355,6 +355,7 @@
       transition: all 0.2s ease;
       position: relative;
       overflow: hidden;
+      touch-action: none;
     }
     .chore::before {
       content: '';
@@ -675,8 +676,14 @@
             li.dataset.id = c.id;
             li.querySelector(".title").textContent = c.title;
 
+            // Desktop drag-and-drop
             li.addEventListener("dragstart", onDragStart);
             li.addEventListener("dragend", onDragEnd);
+
+            // Mobile touch support
+            li.addEventListener("touchstart", onTouchStart, { passive: false });
+            li.addEventListener("touchmove", onTouchMove, { passive: false });
+            li.addEventListener("touchend", onTouchEnd);
 
             li.querySelector(".delete-btn").addEventListener("click", () => deleteChore(c.id));
 
@@ -734,6 +741,101 @@
         if (!choreId || !memberId) return;
 
         await moveChore(choreId, memberId);
+      }
+
+      /* --- Touch Support for Mobile --- */
+      let touchState = {
+        choreId: null,
+        element: null,
+        clone: null,
+        startX: 0,
+        startY: 0,
+        currentDropzone: null
+      };
+
+      function onTouchStart(e) {
+        const chore = e.currentTarget;
+        const touch = e.touches[0];
+        
+        touchState.choreId = chore.dataset.id;
+        touchState.element = chore;
+        touchState.startX = touch.clientX;
+        touchState.startY = touch.clientY;
+        
+        // Create a clone for dragging
+        const clone = chore.cloneNode(true);
+        clone.style.position = 'fixed';
+        clone.style.zIndex = '1000';
+        clone.style.pointerEvents = 'none';
+        clone.style.opacity = '0.8';
+        clone.style.width = chore.offsetWidth + 'px';
+        clone.style.left = touch.clientX - chore.offsetWidth / 2 + 'px';
+        clone.style.top = touch.clientY - 30 + 'px';
+        document.body.appendChild(clone);
+        touchState.clone = clone;
+        
+        chore.classList.add('dragging');
+        e.preventDefault();
+      }
+
+      function onTouchMove(e) {
+        if (!touchState.clone) return;
+        
+        const touch = e.touches[0];
+        touchState.clone.style.left = touch.clientX - touchState.clone.offsetWidth / 2 + 'px';
+        touchState.clone.style.top = touch.clientY - 30 + 'px';
+        
+        // Find dropzone under touch
+        const dropzones = document.querySelectorAll('.dropzone');
+        let foundDropzone = null;
+        
+        dropzones.forEach(zone => {
+          const rect = zone.getBoundingClientRect();
+          if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
+              touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+            foundDropzone = zone;
+          }
+        });
+        
+        // Update visual feedback
+        dropzones.forEach(zone => zone.classList.remove('over'));
+        if (foundDropzone) {
+          foundDropzone.classList.add('over');
+          touchState.currentDropzone = foundDropzone;
+        } else {
+          touchState.currentDropzone = null;
+        }
+        
+        e.preventDefault();
+      }
+
+      async function onTouchEnd(e) {
+        if (!touchState.clone) return;
+        
+        // Remove clone
+        document.body.removeChild(touchState.clone);
+        touchState.element.classList.remove('dragging');
+        
+        // Clear all over states
+        document.querySelectorAll('.dropzone').forEach(zone => zone.classList.remove('over'));
+        
+        // Handle drop
+        if (touchState.currentDropzone && touchState.choreId) {
+          const memberId = touchState.currentDropzone.dataset.memberId;
+          if (memberId) {
+            await moveChore(touchState.choreId, memberId);
+          }
+        }
+        
+        // Reset state
+        touchState = {
+          choreId: null,
+          element: null,
+          clone: null,
+          startX: 0,
+          startY: 0,
+          currentDropzone: null
+        };
       }
 
       /* --- Storage & Utils --- */
