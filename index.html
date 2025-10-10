@@ -230,6 +230,7 @@
       font-size: 12px;
       margin-top: 6px;
     }
+    #board { transition: opacity 0.3s ease; }
   </style>
 <script>
                 window.load_data_from_csv = (filename) => {
@@ -243,7 +244,8 @@
                 window.call_llm = (system_prompt, user_messages, json_fields) => {
                     // Implementation needed when code is downloaded
                 };
-            </script></head>
+            </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script></head>
 <body>
 <header>
 <div class="wrap">
@@ -254,7 +256,7 @@
 <div class="hint">Add members, add chores, drag and drop, delete</div>
 </div>
 </div>
-<div class="hint">Data auto-saves in your browser</div>
+<div class="hint">Data is synced across all devices</div>
 </div>
 </header>
 <main>
@@ -300,28 +302,24 @@
 </li>
 </template>
 <script>
-    (function () {
-      const STORAGE_KEY = "choreManager_v1";
-
+    (async function () {
       const defaultState = {
         members: [
           { id: "unassigned", name: "Unassigned" },
-          { id: "mom", name: "Mom" },
-          { id: "dad", name: "Dad" },
         ],
         chores: [
-          { id: uid(), title: "Wash dishes", memberId: "unassigned" },
-          { id: uid(), title: "Vacuum living room", memberId: "unassigned" },
-          { id: uid(), title: "Laundry", memberId: "unassigned" },
-          { id: uid(), title: "Take out trash", memberId: "unassigned" },
-          { id: uid(), title: "Cook dinner", memberId: "unassigned" },
-          { id: uid(), title: "Clean bathroom", memberId: "unassigned" },
-          { id: uid(), title: "Mow lawn", memberId: "unassigned" },
-          { id: uid(), title: "Grocery shopping", memberId: "unassigned" }
+          { id: "c_ex1", title: "Wash dishes", memberId: "unassigned" },
+          { id: "c_ex2", title: "Vacuum living room", memberId: "unassigned" },
         ],
       };
 
-      let state = loadState() || defaultState;
+      // --- Supabase Setup ---
+      const SUPABASE_URL = 'https://xzutyacrdzmddbwtaqko.supabase.co';
+      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6dXR5YWNyZHptZGRid3RhcWtvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MDI3NjEsImV4cCI6MjA3NTQ3ODc2MX0.NJh7DXVY3f-4zraoB8sD1ZJzynB_uLU9a5scOCzj0XA';
+      const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const STATE_ID = 1; // We'll store our entire app state in a single row with ID 1.
+
+      let state;
 
       // Elements
       const boardEl = document.getElementById("board");
@@ -333,14 +331,21 @@
       const colTpl = document.getElementById("column-template");
       const choreTpl = document.getElementById("chore-template");
 
-      // Init
-      render();
-      memberForm.addEventListener("submit", onAddMember);
-      choreForm.addEventListener("submit", onAddChore);
+      // --- App Initialization ---
+      (async function init() {
+        // Show a loading state
+        boardEl.style.opacity = 0.5;
+
+        state = await loadState() || defaultState;
+        render();
+        memberForm.addEventListener("submit", handleAddMember);
+        choreForm.addEventListener("submit", handleAddChore);
+        boardEl.style.opacity = 1; // Show board after loading
+      })();
 
       /* --- Actions --- */
 
-      function onAddMember(e) {
+      async function handleAddMember(e) {
         e.preventDefault();
         let name = (memberNameInput.value || "").trim();
         if (!name) return;
@@ -362,36 +367,36 @@
         }
 
         state.members.push({ id, name });
-        saveState();
+        await saveState();
         memberNameInput.value = "";
         render();
       }
 
-      function onAddChore(e) {
+      async function handleAddChore(e) {
         e.preventDefault();
         const title = (choreTitleInput.value || "").trim();
         if (!title) return;
 
         const memberId = choreAssigneeSelect.value || "unassigned";
         state.chores.push({ id: uid(), title, memberId });
-        saveState();
+        await saveState();
 
         choreTitleInput.value = "";
         choreAssigneeSelect.value = "unassigned";
         render();
       }
 
-      function deleteChore(id) {
+      async function deleteChore(id) {
         state.chores = state.chores.filter(c => c.id !== id);
-        saveState();
+        await saveState();
         render();
       }
 
-      function moveChore(choreId, memberId) {
+      async function moveChore(choreId, memberId) {
         const c = state.chores.find(x => x.id === choreId);
         if (!c) return;
         c.memberId = memberId;
-        saveState();
+        await saveState();
         render();
       }
 
@@ -472,7 +477,7 @@
       function onDragLeave(e) {
         e.currentTarget.classList.remove("over");
       }
-      function onDrop(e) {
+      async function onDrop(e) {
         e.preventDefault();
         e.currentTarget.classList.remove("over");
 
@@ -480,25 +485,42 @@
         const memberId = e.currentTarget.dataset.memberId;
         if (!choreId || !memberId) return;
 
-        moveChore(choreId, memberId);
+        await moveChore(choreId, memberId);
       }
 
       /* --- Storage & Utils --- */
 
-      function loadState() {
+      async function loadState() {
         try {
-          const raw = localStorage.getItem(STORAGE_KEY);
-          if (!raw) return null;
-          const parsed = JSON.parse(raw);
-          // basic shape check
-          if (!parsed.members || !parsed.chores) return null;
-          return parsed;
-        } catch {
+          const { data, error } = await supabaseClient
+            .from('app_state')
+            .select('data')
+            .eq('id', STATE_ID)
+            .single();
+
+          if (error && error.code !== 'PGRST116') { // PGRST116 = "exact one row not found"
+            throw error;
+          }
+          if (!data) {
+            console.log("No existing state found, will use default.");
+            return null;
+          }
+          return data.data; // The state is nested in the 'data' field of the row
+        } catch (err) {
+          console.error("Error loading state:", err);
           return null;
         }
       }
-      function saveState() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+      async function saveState() {
+        try {
+          const { error } = await supabaseClient
+            .from('app_state')
+            .upsert({ id: STATE_ID, data: state });
+          if (error) throw error;
+        } catch (err) {
+          console.error("Error saving state:", err);
+        }
       }
       function uid() {
         return "c_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -506,7 +528,7 @@
       function slugify(s) {
         return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
       }
-    })();
+    }());
   </script>
 </body>
 </html>
