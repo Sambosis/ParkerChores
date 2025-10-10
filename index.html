@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
@@ -219,6 +218,15 @@
       cursor: pointer;
     }
     .delete-btn:hover { background: rgba(239,68,68,0.12); color: #fecaca; }
+    .delete-member-btn {
+      background: transparent;
+      color: #fca5a5;
+      border: 1px solid var(--border);
+      padding: 6px 9px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .delete-member-btn:hover { background: rgba(239,68,68,0.12); color: #fecaca; }
     .footer-note {
       margin-top: 14px;
       color: var(--muted);
@@ -290,7 +298,10 @@
 <div class="column" data-member-id="">
 <div class="column-header">
 <h4></h4>
+<div>
 <span class="count">0</span>
+<button aria-label="Delete member" class="delete-member-btn">×</button>
+</div>
 </div>
 <ul aria-label="Drop chores here" class="dropzone" role="list"></ul>
 </div>
@@ -392,6 +403,20 @@
         render();
       }
 
+      async function deleteMember(id) {
+        if (id === "unassigned") return;
+
+        state.chores.forEach(c => {
+          if (c.memberId === id) {
+            c.memberId = "unassigned";
+          }
+        });
+
+        state.members = state.members.filter(m => m.id !== id);
+        await saveState();
+        render();
+      }
+
       async function moveChore(choreId, memberId) {
         const c = state.chores.find(x => x.id === choreId);
         if (!c) return;
@@ -409,6 +434,13 @@
           const node = colTpl.content.firstElementChild.cloneNode(true);
           node.dataset.memberId = member.id;
           node.querySelector("h4").textContent = member.name;
+
+          const deleteBtn = node.querySelector(".delete-member-btn");
+          if (member.id === "unassigned") {
+            deleteBtn.remove();
+          } else {
+            deleteBtn.addEventListener("click", () => deleteMember(member.id));
+          }
 
           const dropzone = node.querySelector(".dropzone");
           dropzone.dataset.memberId = member.id;
