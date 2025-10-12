@@ -334,6 +334,37 @@
       background: rgba(96,165,250,0.1);
       font-weight: 600;
     }
+    .frequency-breakdown {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .freq-count {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      border: 1px solid;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .freq-count.daily {
+      background: rgba(236,72,153,0.15);
+      color: #f9a8d4;
+      border-color: rgba(236,72,153,0.4);
+    }
+    .freq-count.weekly {
+      background: rgba(96,165,250,0.15);
+      color: #93c5fd;
+      border-color: rgba(96,165,250,0.4);
+    }
+    .freq-count.monthly {
+      background: rgba(167,139,250,0.15);
+      color: #c4b5fd;
+      border-color: rgba(167,139,250,0.4);
+    }
     .dropzone {
       list-style: none;
       margin: 0;
@@ -531,6 +562,30 @@
         color: #333;
         border-color: #999;
       }
+      .frequency-breakdown {
+        display: flex;
+        gap: 6px;
+      }
+      .freq-count {
+        font-size: 10px;
+        padding: 2px 6px;
+        border: 1px solid;
+      }
+      .freq-count.daily {
+        background: #ffe0f0;
+        color: #c0006b;
+        border-color: #c0006b;
+      }
+      .freq-count.weekly {
+        background: #e0f0ff;
+        color: #0066cc;
+        border-color: #0066cc;
+      }
+      .freq-count.monthly {
+        background: #f0e0ff;
+        color: #6600cc;
+        border-color: #6600cc;
+      }
       .delete-member-btn {
         display: none;
       }
@@ -671,8 +726,8 @@
 <div class="column" data-member-id="">
 <div class="column-header">
 <h4></h4>
-<div style="display: flex; align-items: center; gap: 8px;">
-<span class="count">0</span>
+<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+<div class="frequency-breakdown"></div>
 <button aria-label="Delete member" class="delete-member-btn">×</button>
 </div>
 </div>
@@ -876,7 +931,38 @@
             return orderA - orderB;
           });
           
-          node.querySelector(".count").textContent = chores.length;
+          // Calculate frequency breakdown
+          const dailyCount = chores.filter(c => c.frequency === 'daily').length;
+          const weeklyCount = chores.filter(c => c.frequency === 'weekly').length;
+          const monthlyCount = chores.filter(c => c.frequency === 'monthly').length;
+          
+          // Update frequency breakdown display
+          const breakdownEl = node.querySelector(".frequency-breakdown");
+          breakdownEl.innerHTML = '';
+          
+          if (dailyCount > 0) {
+            const dailyBadge = document.createElement('span');
+            dailyBadge.className = 'freq-count daily';
+            dailyBadge.innerHTML = `<span>D:</span><span>${dailyCount}</span>`;
+            dailyBadge.title = `${dailyCount} Daily chore${dailyCount !== 1 ? 's' : ''}`;
+            breakdownEl.appendChild(dailyBadge);
+          }
+          
+          if (weeklyCount > 0) {
+            const weeklyBadge = document.createElement('span');
+            weeklyBadge.className = 'freq-count weekly';
+            weeklyBadge.innerHTML = `<span>W:</span><span>${weeklyCount}</span>`;
+            weeklyBadge.title = `${weeklyCount} Weekly chore${weeklyCount !== 1 ? 's' : ''}`;
+            breakdownEl.appendChild(weeklyBadge);
+          }
+          
+          if (monthlyCount > 0) {
+            const monthlyBadge = document.createElement('span');
+            monthlyBadge.className = 'freq-count monthly';
+            monthlyBadge.innerHTML = `<span>M:</span><span>${monthlyCount}</span>`;
+            monthlyBadge.title = `${monthlyCount} Monthly chore${monthlyCount !== 1 ? 's' : ''}`;
+            breakdownEl.appendChild(monthlyBadge);
+          }
 
           chores.forEach(c => {
             const li = choreTpl.content.firstElementChild.cloneNode(true);
