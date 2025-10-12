@@ -207,13 +207,23 @@
     }
     .row-3 {
       display: grid;
-      grid-template-columns: 1fr 220px auto;
+      grid-template-columns: 1fr 120px 220px auto;
       gap: 12px;
       align-items: center;
     }
-    @media (max-width: 700px) {
+    @media (max-width: 800px) {
+      .row-3 {
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      #chore-form button {
+        grid-column: 1 / -1;
+      }
+    }
+    @media (max-width: 480px) {
       .row-3 {
         grid-template-columns: 1fr;
+        gap: 12px;
       }
     }
     input, select, button {
@@ -482,6 +492,11 @@
 <form autocomplete="off" id="chore-form">
 <div class="row-3">
 <input id="chore-title" placeholder="e.g., Clean the fridge" required="" type="text"/>
+<select id="chore-frequency" aria-label="Chore frequency">
+  <option value="daily">Daily</option>
+  <option value="weekly" selected>Weekly</option>
+  <option value="monthly">Monthly</option>
+</select>
 <select aria-label="Assign to" id="chore-assignee"></select>
 <button type="submit">Add Chore</button>
 </div>
