@@ -488,6 +488,113 @@
     .dropzone::-webkit-scrollbar-thumb:hover {
       background: var(--accent);
     }
+
+    /* Print Styles */
+    @media print {
+      body {
+        background: white;
+        color: black;
+      }
+      header, .controls, .footer-note, .modal {
+        display: none !important;
+      }
+      main {
+        max-width: 100%;
+        margin: 0;
+        padding: 20px;
+      }
+      .board {
+        display: block;
+      }
+      .column {
+        page-break-inside: avoid;
+        break-inside: avoid;
+        margin-bottom: 30px;
+        border: 2px solid #333;
+        background: white;
+        box-shadow: none;
+      }
+      .column-header {
+        background: #f0f0f0;
+        border-bottom: 2px solid #333;
+        padding: 12px;
+      }
+      .column-header h4 {
+        color: #000;
+        font-size: 18px;
+      }
+      .column-header h4::before {
+        background: #333;
+      }
+      .count {
+        background: #e0e0e0;
+        color: #333;
+        border-color: #999;
+      }
+      .delete-member-btn {
+        display: none;
+      }
+      .dropzone {
+        padding: 12px;
+      }
+      .chore {
+        background: white;
+        border: 1px solid #666;
+        margin-bottom: 8px;
+        padding: 10px;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+      .chore::before {
+        display: none;
+      }
+      .chore .title {
+        color: #000;
+        font-weight: 500;
+      }
+      .delete-btn {
+        display: none;
+      }
+      .frequency-badge {
+        border: 1px solid #666;
+        padding: 3px 8px;
+        font-size: 10px;
+      }
+      .frequency-badge.daily {
+        background: #ffe0f0;
+        color: #c0006b;
+        border-color: #c0006b;
+      }
+      .frequency-badge.weekly {
+        background: #e0f0ff;
+        color: #0066cc;
+        border-color: #0066cc;
+      }
+      .frequency-badge.monthly {
+        background: #f0e0ff;
+        color: #6600cc;
+        border-color: #6600cc;
+      }
+      .print-header {
+        display: block !important;
+        text-align: center;
+        margin-bottom: 30px;
+        padding-bottom: 15px;
+        border-bottom: 3px solid #333;
+      }
+      .print-header h1 {
+        margin: 0 0 10px;
+        font-size: 28px;
+        color: #000;
+      }
+      .print-header .print-date {
+        font-size: 14px;
+        color: #666;
+      }
+    }
+    .print-header {
+      display: none;
+    }
   </style>
 <script>
                 window.load_data_from_csv = (filename) => {
@@ -506,18 +613,25 @@
 <body>
 <header>
 <div class="wrap">
-<div class="brand">
-<div class="brand-badge">C</div>
-<div>
-<div class="brand-text">Chore Manager</div>
-<div class="hint">✨ Organize, assign, and track household chores</div>
+      <div class="brand">
+        <div class="brand-badge">C</div>
+        <div>
+          <div class="brand-text">Chore Manager</div>
+          <div class="hint">✨ Organize, assign, and track household chores</div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 12px;">
+        <button id="print-btn" title="Print chore list">🖨️ Print</button>
+        <button id="add-member-btn">+ Add Member</button>
+      </div>
 </div>
-</div>
-<button id="add-member-btn">+ Add Member</button>
-</div>
-</header>
-<main>
-<section class="controls">
+  </header>
+  <main>
+    <div class="print-header">
+      <h1>📋 Chore Assignment List</h1>
+      <div class="print-date"></div>
+    </div>
+    <section class="controls">
 <div class="card">
 <h3>📋 Add New Chore</h3>
 <form autocomplete="off" id="chore-form">
@@ -606,6 +720,7 @@
       const choreTpl = document.getElementById("chore-template");
       const addMemberModal = document.getElementById("add-member-modal");
       const addMemberBtn = document.getElementById("add-member-btn");
+      const printBtn = document.getElementById("print-btn");
       const closeBtn = document.querySelector(".close-btn");
 
 
@@ -618,6 +733,7 @@
         memberForm.addEventListener("submit", handleAddMember);
         choreForm.addEventListener("submit", handleAddChore);
         addMemberBtn.addEventListener("click", () => addMemberModal.style.display = "block");
+        printBtn.addEventListener("click", handlePrint);
         closeBtn.addEventListener("click", () => addMemberModal.style.display = "none");
         window.addEventListener("click", (event) => {
           if (event.target == addMemberModal) {
@@ -715,6 +831,22 @@
         render();
       }
 
+      function handlePrint() {
+        // Update print date
+        const printDateEl = document.querySelector('.print-date');
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('en-US', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        });
+        printDateEl.textContent = `Generated on ${dateStr}`;
+        
+        // Trigger print dialog
+        window.print();
+      }
+
       /* --- Render --- */
 
       function render() {
@@ -735,6 +867,15 @@
           dropzone.dataset.memberId = member.id;
 
           const chores = state.chores.filter(c => c.memberId === member.id);
+          
+          // Sort chores by frequency: daily -> weekly -> monthly
+          const frequencyOrder = { 'daily': 1, 'weekly': 2, 'monthly': 3 };
+          chores.sort((a, b) => {
+            const orderA = frequencyOrder[a.frequency || 'weekly'] || 2;
+            const orderB = frequencyOrder[b.frequency || 'weekly'] || 2;
+            return orderA - orderB;
+          });
+          
           node.querySelector(".count").textContent = chores.length;
 
           chores.forEach(c => {
