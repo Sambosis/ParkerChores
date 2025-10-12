@@ -415,6 +415,37 @@
       color: #fecaca;
       transform: scale(1.05);
     }
+    .frequency-badge {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+      border: 1px solid;
+    }
+    .frequency-badge:hover {
+      transform: scale(1.1);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    .frequency-badge.daily {
+      background: rgba(236,72,153,0.15);
+      color: #f9a8d4;
+      border-color: rgba(236,72,153,0.4);
+    }
+    .frequency-badge.weekly {
+      background: rgba(96,165,250,0.15);
+      color: #93c5fd;
+      border-color: rgba(96,165,250,0.4);
+    }
+    .frequency-badge.monthly {
+      background: rgba(167,139,250,0.15);
+      color: #c4b5fd;
+      border-color: rgba(167,139,250,0.4);
+    }
     .footer-note {
       margin-top: 40px;
       color: var(--muted);
@@ -537,7 +568,10 @@
 <template id="chore-template">
 <li class="chore" data-id="" draggable="true" role="listitem" title="Drag to reassign">
 <span class="title"></span>
+<div style="display: flex; align-items: center; gap: 8px;">
+<span class="frequency-badge" title="Click to change frequency"></span>
 <button aria-label="Delete chore" class="delete-btn">×</button>
+</div>
 </li>
 </template>
 <script>
@@ -547,8 +581,8 @@
           { id: "unassigned", name: "Unassigned" },
         ],
         chores: [
-          { id: "c_ex1", title: "Wash dishes", memberId: "unassigned" },
-          { id: "c_ex2", title: "Vacuum living room", memberId: "unassigned" },
+          { id: "c_ex1", title: "Wash dishes", memberId: "unassigned", frequency: "daily" },
+          { id: "c_ex2", title: "Vacuum living room", memberId: "unassigned", frequency: "weekly" },
         ],
       };
 
@@ -566,6 +600,7 @@
       const memberNameInput = document.getElementById("member-name");
       const choreForm = document.getElementById("chore-form");
       const choreTitleInput = document.getElementById("chore-title");
+      const choreFrequencySelect = document.getElementById("chore-frequency");
       const choreAssigneeSelect = document.getElementById("chore-assignee");
       const colTpl = document.getElementById("column-template");
       const choreTpl = document.getElementById("chore-template");
@@ -628,11 +663,13 @@
         if (!title) return;
 
         const memberId = choreAssigneeSelect.value || "unassigned";
-        state.chores.push({ id: uid(), title, memberId });
+        const frequency = choreFrequencySelect.value || "weekly";
+        state.chores.push({ id: uid(), title, memberId, frequency });
         await saveState();
 
         choreTitleInput.value = "";
         choreAssigneeSelect.value = "unassigned";
+        choreFrequencySelect.value = "weekly";
         render();
       }
 
@@ -664,6 +701,20 @@
         render();
       }
 
+      async function updateChoreFrequency(choreId) {
+        const c = state.chores.find(x => x.id === choreId);
+        if (!c) return;
+        
+        // Cycle through frequencies: daily -> weekly -> monthly -> daily
+        const frequencies = ['daily', 'weekly', 'monthly'];
+        const currentIndex = frequencies.indexOf(c.frequency || 'weekly');
+        const nextIndex = (currentIndex + 1) % frequencies.length;
+        c.frequency = frequencies[nextIndex];
+        
+        await saveState();
+        render();
+      }
+
       /* --- Render --- */
 
       function render() {
@@ -690,6 +741,16 @@
             const li = choreTpl.content.firstElementChild.cloneNode(true);
             li.dataset.id = c.id;
             li.querySelector(".title").textContent = c.title;
+
+            // Set frequency badge
+            const frequencyBadge = li.querySelector(".frequency-badge");
+            const frequency = c.frequency || 'weekly';
+            frequencyBadge.textContent = frequency.charAt(0).toUpperCase() + frequency.slice(1);
+            frequencyBadge.className = `frequency-badge ${frequency}`;
+            frequencyBadge.addEventListener("click", (e) => {
+              e.stopPropagation();
+              updateChoreFrequency(c.id);
+            });
 
             // Desktop drag-and-drop
             li.addEventListener("dragstart", onDragStart);
@@ -870,7 +931,18 @@
             console.log("No existing state found, will use default.");
             return null;
           }
-          return data.data;
+          
+          // Ensure all chores have a frequency (backward compatibility)
+          const loadedState = data.data;
+          if (loadedState && loadedState.chores) {
+            loadedState.chores.forEach(chore => {
+              if (!chore.frequency) {
+                chore.frequency = 'weekly';
+              }
+            });
+          }
+          
+          return loadedState;
         } catch (err) {
           console.error("Error loading state:", err);
           return null;
