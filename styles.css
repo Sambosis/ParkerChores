@@ -660,8 +660,8 @@ button:active {
   .chore {
     background: white;
     border: 1px solid #666;
-    margin-bottom: 8px;
-    padding: 10px;
+    margin-bottom: 4px;
+    padding: 4px;
     page-break-inside: avoid;
     break-inside: avoid;
   }
